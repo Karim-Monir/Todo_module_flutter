@@ -21,15 +21,9 @@ class _HomeLayoutState extends State<HomeLayout> {
     ArchivedTasksScreen()
   ];
 
-  List<String> titles =
-  [
-    'New Tasks',
-    'Done Tasks',
-    'Archived Tasks'
-  ];
+  List<String> titles = ['New Tasks', 'Done Tasks', 'Archived Tasks'];
 
   late Database db;
-
 
   @override
   void initState() {
@@ -39,19 +33,15 @@ class _HomeLayoutState extends State<HomeLayout> {
   }
 
   @override
-  Widget build(BuildContext context)
-  {
+  Widget build(BuildContext context) {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
         title: Text(titles[currentIndex]),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: ()
-        {
-            _scaffoldKey.currentState.showBottomSheet((context) => Container(
-
-            ));
+        onPressed: () {
+          _scaffoldKey.currentState?.showBottomSheet((context) => Container());
         },
         child: Icon(Icons.add),
       ),
@@ -94,7 +84,7 @@ class _HomeLayoutState extends State<HomeLayout> {
     db = await openDatabase('todo.db', version: 1, onCreate: (db, version) {
       db
           .execute(
-          'CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT, date TEXT, time TEXT, status TEXT )')
+              'CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT, date TEXT, time TEXT, status TEXT )')
           .then((value) {
         print('table created');
       }).catchError((error) {
@@ -107,22 +97,18 @@ class _HomeLayoutState extends State<HomeLayout> {
     });
   }
 
-  Future<void>? insertToDatabase () async {
-     await db.transaction((txn)
-    {
-      txn.rawInsert(
-        'INSERT INTO tasks(title, date, time, status) VALUES("first task", "02222", "xdfsd", "done")'
-      ).then((value){
+// could be just void (?) -- Amr
+  void insertToDatabase() async {
+    await db.transaction((txn) {
+      return txn
+          .rawInsert(
+              'INSERT INTO tasks(title, date, time, status) VALUES("first task", "02222", "xdfsd", "done")')
+          .then((value) {
         print('$value INSERTED SUCCESSFULLY');
-      }).catchError((error){
+      }).catchError((error) {
         print('ERROR WHILE INSERTING NEW RECORD ${error.toString()}');
       });
       // return null;
-    }
-
-    );
+    });
   }
-
-
 }
-
