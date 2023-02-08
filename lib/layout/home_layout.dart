@@ -13,6 +13,7 @@ class HomeLayout extends StatefulWidget {
 
 class _HomeLayoutState extends State<HomeLayout> {
   int currentIndex = 0;
+  var _scaffoldKey = GlobalKey<ScaffoldState>();
 
   List<Widget> screens = [
     NewTasksScreen(),
@@ -41,13 +42,16 @@ class _HomeLayoutState extends State<HomeLayout> {
   Widget build(BuildContext context)
   {
     return Scaffold(
+      key: _scaffoldKey,
       appBar: AppBar(
         title: Text(titles[currentIndex]),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: ()
         {
-          insertToDatabase();
+            _scaffoldKey.currentState.showBottomSheet((context) => Container(
+
+            ));
         },
         child: Icon(Icons.add),
       ),
@@ -103,8 +107,8 @@ class _HomeLayoutState extends State<HomeLayout> {
     });
   }
 
-  void insertToDatabase (){
-    db.transaction((txn)
+  Future<void>? insertToDatabase () async {
+     await db.transaction((txn)
     {
       txn.rawInsert(
         'INSERT INTO tasks(title, date, time, status) VALUES("first task", "02222", "xdfsd", "done")'
@@ -113,7 +117,7 @@ class _HomeLayoutState extends State<HomeLayout> {
       }).catchError((error){
         print('ERROR WHILE INSERTING NEW RECORD ${error.toString()}');
       });
-      return null;
+      // return null;
     }
 
     );
