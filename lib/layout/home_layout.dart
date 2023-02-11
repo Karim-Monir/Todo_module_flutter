@@ -1,8 +1,14 @@
-import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
+import 'package:conditional_builder_null_safety/conditional_builder_null_safety.dart';
 import 'package:todo_module/modules/archived_tasks/archived_tasks.dart';
 import 'package:todo_module/modules/done_tasks/done_tasks.dart';
+import 'package:todo_module/shared/components/components.dart';
 import 'package:todo_module/modules/new_tasks/new_tasks.dart';
+import '../shared/components/constants.dart';
+import 'package:flutter/material.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:intl/intl.dart';
+
+
 
 class HomeLayout extends StatefulWidget {
   const HomeLayout({Key? key}) : super(key: key);
@@ -12,18 +18,37 @@ class HomeLayout extends StatefulWidget {
 }
 
 class _HomeLayoutState extends State<HomeLayout> {
-  int currentIndex = 0;
-  var _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  List<Widget> screens = [
+
+  var _scaffoldKey = GlobalKey<ScaffoldState>();
+  var _formKey = GlobalKey<FormState>();
+  var titleController = TextEditingController();
+  var timeController = TextEditingController();
+  var dateController = TextEditingController();
+
+  bool isButtomSheetShown = false;
+  IconData fabIcon = Icons.edit;
+  int currentIndex = 0;
+  late Database db;
+
+
+  List<Widget> screens =
+  [
     NewTasksScreen(),
     DoneTasksScreen(),
     ArchivedTasksScreen()
   ];
 
-  List<String> titles = ['New Tasks', 'Done Tasks', 'Archived Tasks'];
 
-  late Database db;
+
+  List<String> titles =
+  [
+    'New Tasks',
+    'Done Tasks',
+    'Archived Tasks'
+  ];
+
+
 
   @override
   void initState() {
@@ -41,9 +66,119 @@ class _HomeLayoutState extends State<HomeLayout> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () {
-          _scaffoldKey.currentState?.showBottomSheet((context) => Container());
+          if (isButtomSheetShown) {
+            if (_formKey.currentState!.validate()) {
+              insertToDatabase(
+                      title: titleController.text,
+                      date: dateController.text,
+                      time: timeController.text
+              )
+                  .then((value) {
+                getDataFromDatabase(db).then((value){
+                  Navigator.pop(context);
+                  setState(() {
+                    isButtomSheetShown = false;
+                    fabIcon = Icons.edit;
+                    tasks = value;
+                  });
+                });
+              });
+            }
+          } else {
+            _scaffoldKey.currentState
+                ?.showBottomSheet(
+                  (context) => Container(
+                    padding: EdgeInsets.all(20.0),
+                    color: Colors.white,
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          defaultTextFormField(
+                            controller: titleController,
+                            type: TextInputType.text,
+                            validate: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Title cannot be empty';
+                              }
+                              return null;
+                            },
+                            label: 'Task name',
+                            prefix: Icons.title,
+                          ),
+                          SizedBox(
+                            height: 15.0,
+                          ),
+                          defaultTextFormField(
+                              controller: timeController,
+                              type: TextInputType.datetime,
+                              validate: (value) {
+                                if (value == null || value.isEmpty) {
+                                  return 'Time cannot be empty';
+                                }
+                                return null;
+                              },
+                              label: 'Task time',
+                              prefix: Icons.watch_later_outlined,
+                              onTap: () {
+                                showTimePicker(
+                                  context: context,
+                                  initialTime: TimeOfDay.now(),
+                                ).then((value) {
+                                  timeController.text =
+                                      value!.format(context).toString();
+                                });
+                              }),
+                          SizedBox(
+                            height: 15.0,
+                          ),
+                          defaultTextFormField(
+                            controller: dateController,
+                            type: TextInputType.datetime,
+                            validate: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Date cannot be empty';
+                              }
+                              return null;
+                            },
+                            label: 'Task Date',
+                            prefix: Icons.calendar_today,
+                            onTap: () {
+                              showDatePicker(
+                                context: context,
+                                initialDate: DateTime.now(),
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.parse('2024-12-31'),
+                              ).then((value) {
+                                // print(DateFormat.yMMMd().format(value!));
+                                dateController.text =
+                                    DateFormat.yMMMd().format(value!);
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  elevation: 20.0,
+                )
+                .closed
+                .then((value) {
+              // Navigator.pop(context);
+              isButtomSheetShown = false;
+              setState(() {
+                fabIcon = Icons.edit;
+              });
+            });
+
+            isButtomSheetShown = true;
+            setState(() {
+              fabIcon = Icons.add;
+            });
+          }
         },
-        child: Icon(Icons.add),
+        child: Icon(fabIcon),
       ),
       bottomNavigationBar: BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
@@ -76,7 +211,11 @@ class _HomeLayoutState extends State<HomeLayout> {
           ),
         ],
       ),
-      body: screens[currentIndex],
+      body: ConditionalBuilder(
+        condition: tasks.isNotEmpty,
+        builder: (context) => screens[currentIndex],
+        fallback: (context) => Center(child: CircularProgressIndicator()),
+      ),
     );
   }
 
@@ -93,22 +232,33 @@ class _HomeLayoutState extends State<HomeLayout> {
 
       print('database created');
     }, onOpen: (db) {
+      getDataFromDatabase(db).then((value){
+        tasks = value;
+        print(tasks);
+      });
       print('database opened');
     });
   }
 
 // could be just void (?) -- Amr
-  void insertToDatabase() async {
+  Future insertToDatabase({
+    required String title,
+    required String time,
+    required String date,
+  }) async {
     await db.transaction((txn) {
       return txn
           .rawInsert(
-              'INSERT INTO tasks(title, date, time, status) VALUES("first task", "02222", "xdfsd", "done")')
+              'INSERT INTO tasks(title, date, time, status) VALUES("$title", "$date", "$time", "new")')
           .then((value) {
         print('$value INSERTED SUCCESSFULLY');
-      }).catchError((error) {
-        print('ERROR WHILE INSERTING NEW RECORD ${error.toString()}');
       });
-      // return null;
+      //throw 'ERROR WHILE INSERTING NEW RECORD';
+      //return 0;
     });
+  }
+
+  Future<List<Map>> getDataFromDatabase(db) async {
+    return await db.rawQuery('SELECT * FROM tasks');
   }
 }
