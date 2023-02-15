@@ -7,6 +7,9 @@ import 'package:sqflite/sqflite.dart';
 import 'package:intl/intl.dart';
 import 'package:todo_module/shared/cubit/states.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import '../../modules/archived_tasks/archived_tasks.dart';
+import '../../modules/done_tasks/done_tasks.dart';
+import '../../modules/new_tasks/new_tasks.dart';
 
 class HomeLayout extends StatelessWidget {
   var _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -21,16 +24,16 @@ class HomeLayout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    AppCubit cubit = AppCubit.get(context);
     return BlocProvider(
       create: (BuildContext context) => AppCubit(),
       child: BlocConsumer<AppCubit, AppStates>(
           listener: (BuildContext context, AppStates state) {},
           builder: (BuildContext context, AppStates state) {
+            AppCubit cubit = AppCubit.get(context);
             return Scaffold(
               key: _scaffoldKey,
               appBar: AppBar(
-                title: Text(AppCubit.get(context).titles[cubit.currentIndex]),
+                title: Text(cubit.titles[cubit.currentIndex]),
               ),
               floatingActionButton: FloatingActionButton(
                 onPressed: () {
@@ -153,6 +156,8 @@ class HomeLayout extends StatelessWidget {
                 //elevation: 25.0,
                 currentIndex: cubit.currentIndex,
                 onTap: (index) {
+                  cubit.changeIndex(index);
+                  print(index);
                   /*setState(() {
                 currentIndex = index;
               });*/
@@ -179,7 +184,7 @@ class HomeLayout extends StatelessWidget {
                 ],
               ),
               body: ConditionalBuilder(
-                condition: tasks.isNotEmpty,
+                condition: true,
                 builder: (context) => cubit.screens[cubit.currentIndex],
                 fallback: (context) =>
                     Center(child: CircularProgressIndicator()),
