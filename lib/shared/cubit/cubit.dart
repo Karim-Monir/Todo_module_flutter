@@ -39,6 +39,20 @@ class AppCubit extends Cubit<AppStates>
   }
 
 
+  bool isButtomSheetShown = false;
+  IconData fabIcon = Icons.edit;
+
+  void changeBottomSheetState ({
+    required bool isShow,
+    required IconData icon
+  })
+  {
+    isButtomSheetShown = isShow;
+    fabIcon = icon;
+    emit(AppChangeBottomSheetState());
+  }
+
+
   Future<Database?> createDataBase() async {
     db = await openDatabase('todo.db', version: 1, onCreate: (db, version) {
       db
@@ -76,16 +90,16 @@ class AppCubit extends Cubit<AppStates>
           .then((value) {
         print('$value INSERTED SUCCESSFULLY');
         emit(AppInsertToDatabaseState());
-        getDataFromDatabase(db).then((value) {
-          emit(AppGetDatabaseState());
-        });
+        getDataFromDatabase(db);
+        emit(AppGetDatabaseState());
       });
       //throw 'ERROR WHILE INSERTING NEW RECORD';
       //return 0;
     });
   }
 
-  getDataFromDatabase(db) {
+  getDataFromDatabase(db) async
+  {
     newTasks = [];
     doneTasks = [];
     archivedTasks = [];
@@ -107,29 +121,28 @@ class AppCubit extends Cubit<AppStates>
   }
 
 
-  bool isButtomSheetShown = false;
-  IconData fabIcon = Icons.edit;
-
-  void changeBottomSheetState ({
-    required bool isShow,
-    required IconData icon
-})
-  {
-    isButtomSheetShown = isShow;
-    fabIcon = icon;
-    emit(AppChangeBottomSheetState());
-  }
-
-
   void updateDatabase
       ({
     required String status,
     required int id,
-  })
+  }) async
   {
      db.rawUpdate('UPDATE tasks SET status = ? WHERE id = ?', ['$status', '$id']).then((value){
        getDataFromDatabase(db);
        emit(AppUpdateDatabaseLoadingState());
      });
+  }
+
+
+
+  void deleteFromDatabase
+      ({
+    required int id,
+  }) async
+  {
+    db.rawDelete('DELETE FROM tasks WHERE id = ?', [id]).then((value){
+      getDataFromDatabase(db);
+      emit(AppDeleteFromDatabaseLoadingState());
+    });
   }
 }
