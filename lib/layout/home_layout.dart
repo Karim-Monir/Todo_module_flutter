@@ -18,16 +18,16 @@ class HomeLayout extends StatelessWidget {
   var timeController = TextEditingController();
   var dateController = TextEditingController();
 
-  bool isButtomSheetShown = false;
-  IconData fabIcon = Icons.edit;
-  late Database db;
-
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (BuildContext context) => AppCubit(),
+      create: (BuildContext context) => AppCubit()..createDataBase(),
       child: BlocConsumer<AppCubit, AppStates>(
-          listener: (BuildContext context, AppStates state) {},
+          listener: (BuildContext context, AppStates state) {
+            if(state is AppInsertToDatabaseState){
+              Navigator.pop(context);
+            }
+          },
           builder: (BuildContext context, AppStates state) {
             AppCubit cubit = AppCubit.get(context);
             return Scaffold(
@@ -37,22 +37,27 @@ class HomeLayout extends StatelessWidget {
               ),
               floatingActionButton: FloatingActionButton(
                 onPressed: () {
-                  if (isButtomSheetShown) {
+                  if (cubit.isButtomSheetShown) {
                     if (_formKey.currentState!.validate()) {
-                      insertToDatabase(
+                      cubit.insertToDatabase(
+                          title: titleController.text,
+                          date: dateController.text,
+                          time: timeController.text);
+
+                      /*insertToDatabase(
                               title: titleController.text,
                               date: dateController.text,
                               time: timeController.text)
                           .then((value) {
                         getDataFromDatabase(db).then((value) {
                           Navigator.pop(context);
-                          /*setState(() {
+                          */ /*setState(() {
                         isButtomSheetShown = false;
                         fabIcon = Icons.edit;
                         tasks = value;
-                      });*/
+                      });*/ /*
                         });
-                      });
+                      });*/
                     }
                   } else {
                     _scaffoldKey.currentState
@@ -135,20 +140,23 @@ class HomeLayout extends StatelessWidget {
                         )
                         .closed
                         .then((value) {
+                      cubit.changeBottomSheetState(
+                        isShow: false,
+                        icon: Icons.edit,
+                      );
                       // Navigator.pop(context);
-                      isButtomSheetShown = false;
-                      /* setState(() {
-                    fabIcon = Icons.edit;
-                  });*/
                     });
 
-                    isButtomSheetShown = true;
+                    cubit.changeBottomSheetState(
+                      isShow: true,
+                      icon: Icons.add,
+                    );
                     /*setState(() {
                   fabIcon = Icons.add;
                 });*/
                   }
                 },
-                child: Icon(fabIcon),
+                child: Icon(cubit.fabIcon),
               ),
               bottomNavigationBar: BottomNavigationBar(
                 type: BottomNavigationBarType.fixed,
@@ -184,7 +192,7 @@ class HomeLayout extends StatelessWidget {
                 ],
               ),
               body: ConditionalBuilder(
-                condition: true,
+                condition: state is! AppGetDatabaseLoadingState,
                 builder: (context) => cubit.screens[cubit.currentIndex],
                 fallback: (context) =>
                     Center(child: CircularProgressIndicator()),
@@ -192,48 +200,5 @@ class HomeLayout extends StatelessWidget {
             );
           }),
     );
-  }
-
-  void createDataBase() async {
-    db = await openDatabase('todo.db', version: 1, onCreate: (db, version) {
-      db
-          .execute(
-              'CREATE TABLE tasks (id INTEGER PRIMARY KEY, title TEXT, date TEXT, time TEXT, status TEXT )')
-          .then((value) {
-        print('table created');
-      }).catchError((error) {
-        print('Error while crating the database ${error.toString()}');
-      });
-
-      print('database created');
-    }, onOpen: (db) {
-      getDataFromDatabase(db).then((value) {
-        tasks = value;
-        print(tasks);
-      });
-      print('database opened');
-    });
-  }
-
-// could be just void (?) -- Amr
-  Future insertToDatabase({
-    required String title,
-    required String time,
-    required String date,
-  }) async {
-    await db.transaction((txn) {
-      return txn
-          .rawInsert(
-              'INSERT INTO tasks(title, date, time, status) VALUES("$title", "$date", "$time", "new")')
-          .then((value) {
-        print('$value INSERTED SUCCESSFULLY');
-      });
-      //throw 'ERROR WHILE INSERTING NEW RECORD';
-      //return 0;
-    });
-  }
-
-  Future<List<Map>> getDataFromDatabase(db) async {
-    return await db.rawQuery('SELECT * FROM tasks');
   }
 }
